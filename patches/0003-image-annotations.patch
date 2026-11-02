@@ -29,12 +29,12 @@ the image's author, so they cause no thread notifications by themselves.
  apps/frontend/src/lib/i18n/catalogSections.js |   1 +
  apps/frontend/src/lib/markdown.ts             |  23 ++
  .../src/lib/ui/AttachmentPreview.svelte       |  12 +-
- apps/frontend/src/lib/ui/ZoomableImage.svelte |  39 ++-
+ apps/frontend/src/lib/ui/ZoomableImage.svelte |  29 +-
  .../chat/modals/AttachmentViewerModal.svelte  | 110 ++++++
  cli/internal/core/image_annotations.go        |  22 ++
  cli/internal/core/image_annotations_test.go   |  23 ++
  cli/internal/core/messages.go                 |   3 +-
- 14 files changed, 1108 insertions(+), 10 deletions(-)
+ 14 files changed, 1103 insertions(+), 5 deletions(-)
  create mode 100644 apps/frontend/messages/de-DE/annotations.json
  create mode 100644 apps/frontend/messages/en-GB/annotations.json
  create mode 100644 apps/frontend/src/lib/annotations/AnnotationLayer.svelte
@@ -978,17 +978,18 @@ index fd6d315b6..b49c545ac 100644
    'chat',
    'common',
 diff --git a/apps/frontend/src/lib/markdown.ts b/apps/frontend/src/lib/markdown.ts
-index 75034147e..b2385430b 100644
+index 3264c8b5d..2e1560847 100644
 --- a/apps/frontend/src/lib/markdown.ts
 +++ b/apps/frontend/src/lib/markdown.ts
-@@ -1,5 +1,6 @@
- import MarkdownIt from 'markdown-it';
+@@ -2,6 +2,7 @@ import MarkdownIt from 'markdown-it';
+ import { parseArtifactFence, type ArtifactFence } from './artifactFence';
+ import { isMermaidSourceAllowed, MAX_MERMAID_PREVIEWS } from './mermaid/policy';
  import footnotePlugin from 'markdown-it-footnote';
 +import { isAnnotationHref } from '$lib/annotations/annotationSpec';
  import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
  import type StateCore from 'markdown-it/lib/rules_core/state_core.mjs';
  import type StateBlock from 'markdown-it/lib/rules_block/state_block.mjs';
-@@ -401,6 +402,27 @@ function renderChatLineBreak(tokens: Token[], idx: number): string {
+@@ -441,6 +442,27 @@ function renderChatLineBreak(tokens: Token[], idx: number): string {
    return lineAfterBreakIsWhitespaceOnly(tokens, idx) ? '' : '<br>\n';
  }
  
@@ -1016,7 +1017,7 @@ index 75034147e..b2385430b 100644
  function renderParagraphOpen(tokens: Token[], idx: number): string {
    return tokens[idx].hidden ? '<span class="list-item-content">' : '<p>';
  }
-@@ -490,6 +512,7 @@ function initialize(): void {
+@@ -529,6 +551,7 @@ function initialize(): void {
  
    // Disable unwanted syntax - only keep what we explicitly want
    md.disable([...DISABLED_RULES]);
@@ -1069,11 +1070,11 @@ index 05b5821cd..8c2736192 100644
    {:else}
      <img
 diff --git a/apps/frontend/src/lib/ui/ZoomableImage.svelte b/apps/frontend/src/lib/ui/ZoomableImage.svelte
-index ef61996aa..cb24f79ff 100644
+index f653cd66e..8c06d24a5 100644
 --- a/apps/frontend/src/lib/ui/ZoomableImage.svelte
 +++ b/apps/frontend/src/lib/ui/ZoomableImage.svelte
-@@ -5,33 +5,49 @@ mounted when a signed image URL refreshes and remounts it for another image.
- <script module lang="ts">
+@@ -7,9 +7,18 @@ Controls live in the viewer footer when one is provided through context.
+   const MIN_ZOOM = 0.25;
    /** Maximum magnification relative to the fitted image. */
    const MAX_ZOOM = 16;
 +
@@ -1090,7 +1091,8 @@ index ef61996aa..cb24f79ff 100644
 +  import type { Snippet } from 'svelte';
    import { SvelteMap } from 'svelte/reactivity';
    import { m } from '$lib/i18n/messages';
- 
+   import { useImageControls, hasImageControls } from './imageControlsContext';
+@@ -17,11 +26,17 @@ Controls live in the viewer footer when one is provided through context.
    let {
      src,
      alt,
@@ -1109,33 +1111,27 @@ index ef61996aa..cb24f79ff 100644
    } = $props();
  
    let stage: HTMLDivElement;
-   let zoom = $state(1);
-   let offsetX = $state(0);
-   let offsetY = $state(0);
--  let naturalWidth = 0;
--  let naturalHeight = 0;
--  let stageWidth = 0;
--  let stageHeight = 0;
-+  let naturalWidth = $state(0);
-+  let naturalHeight = $state(0);
-+  let stageWidth = $state(0);
-+  let stageHeight = $state(0);
-   // Pointer positions stay relative to the stage while it owns pointer capture.
+@@ -45,6 +60,7 @@ Controls live in the viewer footer when one is provided through context.
    const pointers = new SvelteMap<number, { x: number; y: number }>();
    const percent = $derived(Math.round(zoom * 100));
+   const limits = $derived(bounds());
 +  const transform = $derived(`translate(${offsetX}px, ${offsetY}px) scale(${zoom})`);
  
    /** Limit panning to the fitted image's enlarged edges. */
    function bounds(atZoom = zoom) {
-@@ -203,12 +219,20 @@ mounted when a signed image URL refreshes and remounts it for another image.
-       {alt}
-       draggable="false"
-       class="h-full w-full touch-none object-contain outline-none"
+@@ -236,7 +252,7 @@ Controls live in the viewer footer when one is provided through context.
+   >
+     <div
+       class="image-canvas-layer absolute inset-0"
 -      style={`transform: translate(${offsetX}px, ${offsetY}px) scale(${zoom})`}
 +      style:transform
-       {@attach measureImage}
-       {onerror}
-     />
+     >
+       <img
+         {src}
+@@ -248,6 +264,14 @@ Controls live in the viewer footer when one is provided through context.
+         {onerror}
+       />
+     </div>
 +    {#if overlay && naturalWidth && naturalHeight}
 +      {@render overlay({
 +        width: naturalWidth,
@@ -1144,16 +1140,13 @@ index ef61996aa..cb24f79ff 100644
 +        transform
 +      })}
 +    {/if}
-   </div>
--  <div class="flex shrink-0 items-center justify-center gap-1 px-2 py-1">
-+  <div class="flex shrink-0 flex-wrap items-center justify-center gap-1 px-2 py-1">
-     <button
-       type="button"
-       class="icon-action text-white"
-@@ -231,5 +255,6 @@ mounted when a signed image URL refreshes and remounts it for another image.
-     <button type="button" class="ms-2 btn-secondary" disabled={zoom === 1} onclick={fit}
-       >{m('ui.image_modal.fit')}</button
+     <span
+       aria-hidden="true"
+       class={[
+@@ -312,5 +336,6 @@ Controls live in the viewer footer when one is provided through context.
      >
+       {m('ui.image_modal.fit')}
+     </button>
 +    {@render toolbar?.()}
    </div>
  </div>
@@ -1371,5 +1364,5 @@ index 857d84728..0a8f5e7aa 100644
  		if err != nil {
  			c.logger.Warn("Failed to get thread root event",
 -- 
-2.47.3
+2.56.0
 

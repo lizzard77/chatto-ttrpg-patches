@@ -13,10 +13,10 @@ have no replies left, as "Message deleted". The page now omits them.
  1 file changed, 8 insertions(+), 1 deletion(-)
 
 diff --git a/apps/frontend/src/routes/chat/[serverId]/threads/+page.svelte b/apps/frontend/src/routes/chat/[serverId]/threads/+page.svelte
-index 613bc2dc6..23f31d55d 100644
+index aa7492e78..3f6e99b26 100644
 --- a/apps/frontend/src/routes/chat/[serverId]/threads/+page.svelte
 +++ b/apps/frontend/src/routes/chat/[serverId]/threads/+page.svelte
-@@ -187,10 +187,17 @@
+@@ -175,10 +175,17 @@
    );
    const hasMore = $derived(threadsQuery.hasNextPage);
  
@@ -34,7 +34,7 @@ index 613bc2dc6..23f31d55d 100644
 +    threads.filter((t) => !isEmptyDeletedThread(t) && (filter !== 'unread' || t.hasUnreadReplies))
    );
    const dateSections = $derived.by(() => {
-     const sortDate = (thread: FollowedThread) =>
+     const sections = groupByActivityDay(
 -- 
-2.47.3
+2.56.0
 

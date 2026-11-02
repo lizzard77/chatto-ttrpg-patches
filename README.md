@@ -94,16 +94,6 @@ Each patch applies on its own and in any order (the image build uses plain `git 
   no server-wide default. Frontend only, strings in en-GB and de-DE (as with 0001/0002). Upstream's
   appearance page spec expects 3 panels and already fails with 0002 (dice panel); 0004 adds none.
 
-- `0005-room-links.patch` – links to rooms. Typing `#` plus at least one character in the composer
-  offers the server's rooms (joined rooms rank first among equal matches); Enter/Tab inserts a
-  normal Markdown link `[#name](<origin>/chat/<server>/<roomId>)`, so unpatched clients and bots
-  see a working link. Rendered links to a room show as a chip with the **current** room name if
-  the label is generated (`#…` or the bare URL); custom labels stay. Links to rooms the viewer
-  cannot see (private without access, deleted, archived) become a non-clickable **"unknown room"**
-  chip, so the room name in the label does not leak. DMs, threads, messages and other servers stay
-  plain links. Room links to the same server get no link preview in the composer (a following URL
-  gets it instead). Code in `apps/frontend/src/lib/roomLinks.ts`. Frontend only.
-
 - `0006-dice-tray.patch` – dice bar. A floating panel above the right edge of the composer: pick
   d4–d100 (a badge counts each die), −1/+1, in Daggerheart rooms **Advantage**/**Disadvantage**,
   in Savage Worlds rooms **Wild Die** (on for players, off once the viewer's own latest roll was a
@@ -121,13 +111,6 @@ Each patch applies on its own and in any order (the image build uses plain `git 
   known dice thread on open; the dice bot sets up the thread with `!dice` in a thread and moves all
   rolls of the room there. Code in `apps/frontend/src/lib/diceTray/` and
   `lib/components/composer/ComposerDiceTray.svelte`. Frontend only, independent of 0002.
-
-- `0007-tombstone-backfill.patch` – upstream bug fix. When the newest page of a room consists only
-  of deleted messages (for example after a cleanup), the room stayed empty after a reload until it
-  was opened again: the backfill effect could run while the previous backfill call was still
-  settling, return, and never run again. A backfill call that loaded a page now checks again
-  itself. One change in `EventList.svelte`. Reported upstream (2026-10-26); drop the patch once
-  upstream fixes it.
 
 - `0008-deleted-threads.patch` – upstream bug fix. The Threads page listed followed threads whose
   root is deleted and that have no replies left, as "Message deleted"; it now omits them. (The

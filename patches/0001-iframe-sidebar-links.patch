@@ -15,10 +15,10 @@ Subject: [PATCH] Frontend: embed sidebar links in an iframe
  create mode 100644 apps/frontend/src/routes/chat/[serverId]/embed/[linkId]/+page.svelte
 
 diff --git a/apps/frontend/messages/de-DE/room.json b/apps/frontend/messages/de-DE/room.json
-index f99adba17..f239c8f9d 100644
+index 013380efb..a1ec7db4a 100644
 --- a/apps/frontend/messages/de-DE/room.json
 +++ b/apps/frontend/messages/de-DE/room.json
-@@ -317,6 +317,10 @@
+@@ -318,6 +318,10 @@
        "label": "Beschriftung",
        "url": "URL",
        "link_url_placeholder": "https://docs.example.com oder /docs",
@@ -30,10 +30,10 @@ index f99adba17..f239c8f9d 100644
        "delete_link_prompt": "Bist du sicher, dass du {label} löschen möchtest?",
        "archive_room": "Raum archivieren",
 diff --git a/apps/frontend/messages/en-GB/room.json b/apps/frontend/messages/en-GB/room.json
-index d7f07b58c..8f25c0508 100644
+index c2435a32e..577961870 100644
 --- a/apps/frontend/messages/en-GB/room.json
 +++ b/apps/frontend/messages/en-GB/room.json
-@@ -317,6 +317,10 @@
+@@ -318,6 +318,10 @@
        "label": "Label",
        "url": "URL",
        "link_url_placeholder": "https://docs.example.com or /docs",
@@ -45,10 +45,10 @@ index d7f07b58c..8f25c0508 100644
        "delete_link_prompt": "Are you sure you want to delete {label}?",
        "archive_room": "Archive room",
 diff --git a/apps/frontend/src/lib/RoomList.svelte b/apps/frontend/src/lib/RoomList.svelte
-index 0734077a1..86b373360 100644
+index ea9bbda7c..52f9dc132 100644
 --- a/apps/frontend/src/lib/RoomList.svelte
 +++ b/apps/frontend/src/lib/RoomList.svelte
-@@ -26,6 +26,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
+@@ -27,6 +27,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
      sidebarLinkTarget
    } from '$lib/navigation/sidebarLinkTarget';
    import { serverRegistry } from '$lib/client';
@@ -60,7 +60,7 @@ index 0734077a1..86b373360 100644
    import { useServerScope } from '$lib/state/server/scope.svelte';
    import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
    import CreateRoomGroupControl from '$lib/components/chat/CreateRoomGroupControl.svelte';
-@@ -207,6 +212,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
+@@ -212,6 +217,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
    let editingLinkId = $state<string | null>(null);
    let linkLabel = $state('');
    let linkUrl = $state('');
@@ -68,7 +68,7 @@ index 0734077a1..86b373360 100644
    let deleteGroupDialogVisible = $state(false);
    let deleteGroupTarget = $state<RoomsListGroup | null>(null);
    let deleteLinkDialogVisible = $state(false);
-@@ -408,6 +414,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
+@@ -413,6 +419,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
      linkGroupId = group.id;
      linkLabel = '';
      linkUrl = '';
@@ -76,7 +76,7 @@ index 0734077a1..86b373360 100644
      linkDialogVisible = true;
    }
  
-@@ -417,14 +424,15 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
+@@ -422,14 +429,15 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
      editingLinkId = item.link.id;
      linkGroupId = null;
      linkLabel = item.link.label;
@@ -94,7 +94,7 @@ index 0734077a1..86b373360 100644
      if (!label || !url) return;
      try {
        if (editingLinkId) {
-@@ -1170,11 +1178,21 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
+@@ -1138,11 +1146,21 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
        {@render navigationRoomLink(room)}
      {/if}
    {:else}
@@ -118,7 +118,7 @@ index 0734077a1..86b373360 100644
        aria-disabled={!target.valid}
        class={[
          'group/link sidebar-item w-full text-start',
-@@ -1197,7 +1215,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
+@@ -1164,7 +1182,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
          <span
            aria-hidden="true"
            class={[
@@ -128,7 +128,7 @@ index 0734077a1..86b373360 100644
              showDragHandle ? 'group-focus-within/link:opacity-0 group-hover/link:opacity-0' : ''
            ]}
          ></span>
-@@ -1512,7 +1531,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
+@@ -1479,7 +1498,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
  {/if}
  
  {#if linkDialogVisible}
@@ -137,7 +137,7 @@ index 0734077a1..86b373360 100644
      <FormDialogModule.default
        bind:visible={linkDialogVisible}
        title={editingLinkId ? m('room.management.edit_link') : m('room.management.create_link')}
-@@ -1534,6 +1553,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
+@@ -1501,6 +1520,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
          bind:value={linkUrl}
          placeholder={m('room.management.link_url_placeholder')}
        />
@@ -255,10 +255,10 @@ index 000000000..ca3d0b628
 +  {/if}
 +</div>
 diff --git a/apps/frontend/src/routes/chat/[serverId]/manage/rooms/AdminRoomLayoutEditor.svelte b/apps/frontend/src/routes/chat/[serverId]/manage/rooms/AdminRoomLayoutEditor.svelte
-index dd5a3422b..d6a50d15e 100644
+index 7e284e8d8..a5543b025 100644
 --- a/apps/frontend/src/routes/chat/[serverId]/manage/rooms/AdminRoomLayoutEditor.svelte
 +++ b/apps/frontend/src/routes/chat/[serverId]/manage/rooms/AdminRoomLayoutEditor.svelte
-@@ -21,7 +21,12 @@
+@@ -22,7 +22,12 @@
      LoadingFog,
      PaneHeader
    } from '$lib/ui';
@@ -272,7 +272,7 @@ index dd5a3422b..d6a50d15e 100644
    import { toast } from '$lib/ui/toast';
    import { flip } from 'svelte/animate';
    import { dragHandle, dragHandleZone, dndzone, type DndEvent } from 'svelte-dnd-action';
-@@ -273,12 +278,14 @@
+@@ -274,12 +279,14 @@
    let linkGroupId = $state<string | null>(null);
    let linkLabel = $state('');
    let linkUrl = $state('');
@@ -287,7 +287,7 @@ index dd5a3422b..d6a50d15e 100644
      linkDialogVisible = true;
    }
  
-@@ -286,14 +293,15 @@
+@@ -287,14 +294,15 @@
      editingLinkId = link.id;
      linkGroupId = null;
      linkLabel = link.label;
@@ -305,7 +305,7 @@ index dd5a3422b..d6a50d15e 100644
      if (!label || !url) return;
  
      const result = editingLinkId
-@@ -542,11 +550,18 @@
+@@ -543,11 +551,18 @@
                          <div class="flex min-w-0 items-baseline gap-1.5">
                            <span
                              aria-hidden="true"
@@ -326,7 +326,7 @@ index dd5a3422b..d6a50d15e 100644
                        {/if}
                      </div>
                      <div class="flex items-center gap-1.5">
-@@ -618,6 +633,12 @@
+@@ -619,6 +634,12 @@
      bind:value={linkUrl}
      placeholder={m('room.management.link_url_placeholder')}
    />
@@ -340,5 +340,5 @@ index dd5a3422b..d6a50d15e 100644
  
  {#if deleteGroupConfirmDialogVisible && deleteGroupConfirm}
 -- 
-2.47.3
+2.56.0
 

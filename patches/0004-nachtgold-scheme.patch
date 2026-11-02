@@ -22,10 +22,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  10 files changed, 130 insertions(+), 13 deletions(-)
 
 diff --git a/apps/frontend/messages/de-DE/settings.json b/apps/frontend/messages/de-DE/settings.json
-index 490b8522a..a2d16a435 100644
+index e4cd03969..7e41ca28d 100644
 --- a/apps/frontend/messages/de-DE/settings.json
 +++ b/apps/frontend/messages/de-DE/settings.json
-@@ -216,6 +216,13 @@
+@@ -285,6 +285,13 @@
        "save_button": "Zeiteinstellungen speichern",
        "saved": "Zeiteinstellungen gespeichert",
        "save_failed": "Zeiteinstellungen konnten nicht gespeichert werden",
@@ -39,7 +39,7 @@ index 490b8522a..a2d16a435 100644
        "customization": {
          "title": "Design anpassen"
        },
-@@ -229,7 +236,8 @@
+@@ -298,7 +305,8 @@
          "orange": "Orange",
          "pink": "Rosa",
          "violet": "Violett",
@@ -49,7 +49,7 @@ index 490b8522a..a2d16a435 100644
        },
        "tone": {
          "title": "Hintergrundfarbe",
-@@ -244,7 +252,8 @@
+@@ -313,7 +321,8 @@
          "midnight": "Mitternacht",
          "forest": "Wald",
          "plum": "Pflaume",
@@ -60,10 +60,10 @@ index 490b8522a..a2d16a435 100644
        "contrast": {
          "label": "Kontrast",
 diff --git a/apps/frontend/messages/en-GB/settings.json b/apps/frontend/messages/en-GB/settings.json
-index 5aef34d52..417353680 100644
+index 09cbc2b08..fd3930563 100644
 --- a/apps/frontend/messages/en-GB/settings.json
 +++ b/apps/frontend/messages/en-GB/settings.json
-@@ -216,6 +216,13 @@
+@@ -282,6 +282,13 @@
        "save_button": "Save time settings",
        "saved": "Time settings saved",
        "save_failed": "Failed to save time settings",
@@ -77,7 +77,7 @@ index 5aef34d52..417353680 100644
        "customization": {
          "title": "Theme customisation"
        },
-@@ -229,7 +236,8 @@
+@@ -295,7 +302,8 @@
          "orange": "Orange",
          "pink": "Pink",
          "violet": "Violet",
@@ -87,7 +87,7 @@ index 5aef34d52..417353680 100644
        },
        "tone": {
          "title": "Background colour",
-@@ -244,7 +252,8 @@
+@@ -310,7 +318,8 @@
          "midnight": "Midnight",
          "forest": "Forest",
          "plum": "Plum",
@@ -98,10 +98,10 @@ index 5aef34d52..417353680 100644
        "contrast": {
          "label": "Contrast",
 diff --git a/apps/frontend/src/app.css b/apps/frontend/src/app.css
-index e02e7128a..9de26ca19 100644
+index 13ee87605..9af94054f 100644
 --- a/apps/frontend/src/app.css
 +++ b/apps/frontend/src/app.css
-@@ -514,6 +514,11 @@
+@@ -544,6 +544,11 @@
    --accent-strong: var(--color-neutral-700);
    --accent-bright: var(--color-neutral-300);
  }
@@ -113,7 +113,7 @@ index e02e7128a..9de26ca19 100644
  
  /*
   * Surface tones.
-@@ -750,7 +755,10 @@
+@@ -780,7 +785,10 @@
  :root[data-theme='dark'][data-dark-tone='plum'],
  [data-tone='clay'],
  :root:not([data-theme='dark'])[data-light-tone='clay'],
@@ -125,7 +125,7 @@ index e02e7128a..9de26ca19 100644
    --tone-source-100: oklch(50% calc(var(--tone-chroma) * 0.2) var(--tone-hue));
    --tone-source-200: oklch(50% calc(var(--tone-chroma) * 0.3) var(--tone-hue));
    --tone-source-300: oklch(50% calc(var(--tone-chroma) * 0.45) var(--tone-hue));
-@@ -786,6 +794,13 @@
+@@ -816,6 +824,13 @@
    --tone-hue: 45;
    --tone-chroma: 0.06;
  }
@@ -140,7 +140,7 @@ index e02e7128a..9de26ca19 100644
  @theme {
    /* Readable width of the content column of a pane page (`max-w-pane`), and
 diff --git a/apps/frontend/src/app.html b/apps/frontend/src/app.html
-index f75d6d065..afccde594 100644
+index e0e225849..61abd52a0 100644
 --- a/apps/frontend/src/app.html
 +++ b/apps/frontend/src/app.html
 @@ -47,7 +47,8 @@
@@ -153,7 +153,7 @@ index f75d6d065..afccde594 100644
          ];
  
          // CSS selects the tone that matches the active theme.
-@@ -270,7 +271,8 @@
+@@ -284,7 +285,8 @@
              'orange',
              'pink',
              'violet',
@@ -164,10 +164,10 @@ index f75d6d065..afccde594 100644
              ? accent
              : 'cyan';
 diff --git a/apps/frontend/src/appHtml.spec.ts b/apps/frontend/src/appHtml.spec.ts
-index 7a51f4432..f2fac11db 100644
+index 2f8c30abf..857d69740 100644
 --- a/apps/frontend/src/appHtml.spec.ts
 +++ b/apps/frontend/src/appHtml.spec.ts
-@@ -362,7 +362,7 @@ describe('app.html theme bootstrap', () => {
+@@ -386,7 +386,7 @@ describe('app.html theme bootstrap', () => {
      expect(root.style.getPropertyValue('--depth-level')).toBe('50');
    });
  
@@ -176,7 +176,7 @@ index 7a51f4432..f2fac11db 100644
      'restores the %s accent before the app starts',
      (accentColor) => {
        const { root } = runThemeScript({ preferences: { accentColor }, systemDark: true });
-@@ -383,7 +383,8 @@ describe('app.html theme bootstrap', () => {
+@@ -407,7 +407,8 @@ describe('app.html theme bootstrap', () => {
      'slate',
      'midnight',
      'mauve',
@@ -200,10 +200,10 @@ index bc2aca86f..a773fd147 100644
      {#each accentColors as color (color)}
        <label
 diff --git a/apps/frontend/src/lib/components/settings/AppAppearanceSettings.svelte b/apps/frontend/src/lib/components/settings/AppAppearanceSettings.svelte
-index 1a83e7842..242c82ec4 100644
+index 57aff90c3..c33b699f6 100644
 --- a/apps/frontend/src/lib/components/settings/AppAppearanceSettings.svelte
 +++ b/apps/frontend/src/lib/components/settings/AppAppearanceSettings.svelte
-@@ -121,6 +121,20 @@
+@@ -170,6 +170,20 @@
          icon="iconify icon-[uil--palette]"
        >
          <div class="flex flex-col gap-6">
@@ -225,10 +225,10 @@ index 1a83e7842..242c82ec4 100644
              <AccentColorPicker
                value={userPreferences.accentColor}
 diff --git a/apps/frontend/src/lib/state/userPreferences.svelte.spec.ts b/apps/frontend/src/lib/state/userPreferences.svelte.spec.ts
-index d381b8018..b0364e3da 100644
+index 6205d4f91..cdff00c67 100644
 --- a/apps/frontend/src/lib/state/userPreferences.svelte.spec.ts
 +++ b/apps/frontend/src/lib/state/userPreferences.svelte.spec.ts
-@@ -316,6 +316,25 @@ describe('UserPreferencesState', () => {
+@@ -365,6 +365,25 @@ describe('UserPreferencesState', () => {
      });
    });
  
@@ -255,10 +255,10 @@ index d381b8018..b0364e3da 100644
      localStorage.setItem(
        STORAGE_KEY,
 diff --git a/apps/frontend/src/lib/state/userPreferences.svelte.ts b/apps/frontend/src/lib/state/userPreferences.svelte.ts
-index 0554aa254..89bb99510 100644
+index d10809d39..68999c132 100644
 --- a/apps/frontend/src/lib/state/userPreferences.svelte.ts
 +++ b/apps/frontend/src/lib/state/userPreferences.svelte.ts
-@@ -25,7 +25,8 @@ export const accentColors = [
+@@ -30,7 +30,8 @@ export const accentColors = [
    'orange',
    'pink',
    'violet',
@@ -268,7 +268,7 @@ index 0554aa254..89bb99510 100644
  ] as const;
  
  export type AccentColor = (typeof accentColors)[number];
-@@ -60,7 +61,8 @@ export const surfaceTones = [
+@@ -65,7 +66,8 @@ export const surfaceTones = [
    'slate',
    'midnight',
    'mauve',
@@ -278,7 +278,7 @@ index 0554aa254..89bb99510 100644
  ] as const;
  
  export type SurfaceTone = (typeof surfaceTones)[number];
-@@ -472,6 +474,25 @@ export function getLegacyNotificationSoundPreferences(): LegacyNotificationSound
+@@ -480,6 +482,25 @@ export function getLegacyNotificationSoundPreferences(): LegacyNotificationSound
    };
  }
  
@@ -304,7 +304,7 @@ index 0554aa254..89bb99510 100644
  export class UserPreferencesState {
    #preferences = $state<AppPreferences>(loadAppPreferences());
    readonly #prefersDark = new MediaQuery('(prefers-color-scheme: dark)', false);
-@@ -539,6 +560,33 @@ export class UserPreferencesState {
+@@ -571,6 +592,33 @@ export class UserPreferencesState {
      this.#applySurfaceTones();
    }
  
@@ -339,10 +339,10 @@ index 0554aa254..89bb99510 100644
    get surfaceDepth(): number {
      return this.#preferences.surfaceDepth;
 diff --git a/apps/frontend/src/routes/chat/preferences/appearance.page.svelte.spec.ts b/apps/frontend/src/routes/chat/preferences/appearance.page.svelte.spec.ts
-index 45711091f..c8cd569a0 100644
+index ce91d9d0b..eae1f76fe 100644
 --- a/apps/frontend/src/routes/chat/preferences/appearance.page.svelte.spec.ts
 +++ b/apps/frontend/src/routes/chat/preferences/appearance.page.svelte.spec.ts
-@@ -161,7 +161,7 @@ describe('App Preferences appearance page', () => {
+@@ -177,7 +177,7 @@ describe('App Preferences appearance page', () => {
      const screen = render(AppearancePage);
      await settle();
      const accents = screen.getByRole('group', { name: 'Accent colour' });
@@ -352,5 +352,5 @@ index 45711091f..c8cd569a0 100644
      await userEvent.click(
        accents.getByRole('radio', { name: 'Violet', exact: true }).element().nextElementSibling!
 -- 
-2.47.3
+2.56.0
 

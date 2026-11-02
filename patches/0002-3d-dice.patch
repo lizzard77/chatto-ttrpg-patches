@@ -121,18 +121,18 @@ index 000000000..820867716
 +  }
 +}
 diff --git a/apps/frontend/src/lib/components/settings/AppAppearanceSettings.svelte b/apps/frontend/src/lib/components/settings/AppAppearanceSettings.svelte
-index f4a71787f..1a83e7842 100644
+index 305c7859b..57aff90c3 100644
 --- a/apps/frontend/src/lib/components/settings/AppAppearanceSettings.svelte
 +++ b/apps/frontend/src/lib/components/settings/AppAppearanceSettings.svelte
-@@ -11,6 +11,7 @@
-   import AccentColorPicker from './AccentColorPicker.svelte';
-   import SurfaceTonePicker from './SurfaceTonePicker.svelte';
+@@ -13,6 +13,7 @@
    import { RangeField } from '$lib/ui/form';
+   import { transitionTheme } from '$lib/dom/viewTransitions';
+   import type { AnimationPreference } from '$lib/dom/motionPreference';
 +  import { dicePreferences, type DiceMode } from '$lib/dice/dice.svelte';
  
-   const contrastDisplayValue = $derived(`${Math.round((userPreferences.contrastAge - 20) * 5)}%`);
-   const contrastValueText = $derived(
-@@ -76,6 +77,14 @@
+   const animationOptions = $derived([
+     {
+@@ -96,6 +97,14 @@
      label: string;
      description: string;
    }>);
@@ -147,7 +147,7 @@ index f4a71787f..1a83e7842 100644
  </script>
  
  <PageTitle title={m('settings.app_preferences.appearance.title')} scope="app" />
-@@ -193,6 +202,21 @@
+@@ -242,6 +251,21 @@
            </div>
          </div>
        </Panel>
@@ -1409,10 +1409,10 @@ index 7995311c5..fd6d315b6 100644
    'error_page',
    'media',
 diff --git a/apps/frontend/src/lib/markdown.ts b/apps/frontend/src/lib/markdown.ts
-index 08d6e215c..75034147e 100644
+index a014347f1..3264c8b5d 100644
 --- a/apps/frontend/src/lib/markdown.ts
 +++ b/apps/frontend/src/lib/markdown.ts
-@@ -9,6 +9,7 @@ import { renderedLinkTarget } from '$lib/navigation/renderedLink';
+@@ -11,6 +11,7 @@ import { renderedLinkTarget } from '$lib/navigation/renderedLink';
  import { collectMentionHandles, MENTIONS_ENV_KEY, mentionPlugin } from '$lib/markdownMentions';
  import { m } from '$lib/i18n/messages';
  import { emojiPlugin } from './markdownEmoji';
@@ -1420,7 +1420,7 @@ index 08d6e215c..75034147e 100644
  
  type CodeHighlightingModule = typeof import('$lib/codeHighlighting');
  
-@@ -424,6 +425,34 @@ function normalizeInlineNonBreakingSpaces(state: StateCore): void {
+@@ -464,6 +465,34 @@ function normalizeInlineNonBreakingSpaces(state: StateCore): void {
    }
  }
  
@@ -1455,9 +1455,9 @@ index 08d6e215c..75034147e 100644
  async function ensureFenceLanguagesLoaded(languages: string[]): Promise<void> {
    if (languages.length === 0) return;
  
-@@ -506,6 +535,8 @@ function initialize(): void {
-     if (art === undefined) return defaultFence(tokens, index, options, env, self);
-     return `<pre class="markdown-code markdown-ansi" data-copy-source="${escapeAttribute(token.content)}"><code tabindex="0">${art}</code>${renderCodeActions('ansi')}</pre>\n`;
+@@ -567,6 +596,8 @@ function initialize(): void {
+           : `<pre class="markdown-code markdown-ansi"><code tabindex="0">${art}</code></pre>`
+     });
    };
 +  md.core.ruler.push('chatto_dice', diceMarkers);
 +  md.renderer.rules.chatto_dice = renderDiceMarker;
@@ -1465,10 +1465,10 @@ index 08d6e215c..75034147e 100644
    md.renderer.rules.hardbreak = renderChatLineBreak;
    md.renderer.rules.table_open = () => '<div class="table-scroll" tabindex="0"><table>\n';
 diff --git a/apps/frontend/src/lib/ui/MarkdownHtml.svelte b/apps/frontend/src/lib/ui/MarkdownHtml.svelte
-index 066ad7deb..7be9b172a 100644
+index 5e879bf27..31907b4b4 100644
 --- a/apps/frontend/src/lib/ui/MarkdownHtml.svelte
 +++ b/apps/frontend/src/lib/ui/MarkdownHtml.svelte
-@@ -53,6 +53,15 @@ targets are unique to each component, including when callers reuse rendered HTML
+@@ -74,6 +74,15 @@ targets are unique to each component, including when callers reuse rendered HTML
        return;
      }
  
@@ -1485,7 +1485,7 @@ index 066ad7deb..7be9b172a 100644
      if (!button) {
        const anchor = target.closest('a');
 diff --git a/apps/frontend/src/routes/chat/[serverId]/[roomId]/ConversationPane.svelte b/apps/frontend/src/routes/chat/[serverId]/[roomId]/ConversationPane.svelte
-index fe20bc41b..71f39cba3 100644
+index e725b360a..34a2b923b 100644
 --- a/apps/frontend/src/routes/chat/[serverId]/[roomId]/ConversationPane.svelte
 +++ b/apps/frontend/src/routes/chat/[serverId]/[roomId]/ConversationPane.svelte
 @@ -67,6 +67,7 @@ thread IDs can change while the pane stays mounted.
@@ -1496,8 +1496,8 @@ index fe20bc41b..71f39cba3 100644
  
    let {
      roomId,
-@@ -360,7 +361,21 @@ thread IDs can change while the pane stays mounted.
-     if (projectionEvent.resource?.case === 'notifications') readRootReactions();
+@@ -361,7 +362,21 @@ thread IDs can change while the pane stays mounted.
+     if (projectionEvent.resource?.case === 'notifications') readThreadReactions();
      const semantic = projectionEvent.event?.event;
      if (semantic?.case !== 'messagePosted' || semantic.value.roomId !== roomId) return;
 -    if ((semantic.value.threadRootEventId || null) !== threadRootEventId) return;
@@ -1520,5 +1520,5 @@ index fe20bc41b..71f39cba3 100644
      const actorId = projectionEvent.event?.actorId;
      if (actorId) typingIndicator.removeTypingUser(actorId);
 -- 
-2.47.3
+2.56.0
 
