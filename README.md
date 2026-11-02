@@ -104,7 +104,9 @@ Each patch applies on its own and in any order (the image build uses plain `git 
   typed – the panel shows the bot's answer to it: the total, the outcome next to it (Daggerheart
   (H)/(F)/(!), Savage Worlds 👍 plus a green arrow per raise, 👎, 👎! for a critical failure), the dice
   in the colours of the 3D dice (dice that do not count struck through) and the modifier;
-  **New roll** goes back to the picker. The 🎲 button in the composer hides or shows the panel per
+  **New roll** goes back to the picker. A viewer whose own latest roll was a GM roll (`;gm=1`) also sees,
+  at the top of the panel, the latest roll of each other player (name, coloured dice, total and outcome;
+  newest first, at most five; a new roll flashes briefly). The 🎲 button in the composer hides or shows the panel per
   room (device-local, shown by default). While it is hidden, a small card above the room composer
   shows the latest result; a viewer whose own latest roll was a GM roll (`;gm=1`) sees the latest
   result per player instead. Results come from live events, thread replies included, and from the

@@ -24,20 +24,24 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  .../composer/ComposerToolbar.svelte           |  10 +-
  .../composer/MessageComposer.svelte           |  25 +-
  .../composer/messageComposerState.svelte.ts   |  25 +
- apps/frontend/src/lib/diceTray/DiceBar.svelte | 337 +++++++++++++
+ apps/frontend/src/lib/diceTray/DiceBar.svelte | 286 +++++++++++
+ .../src/lib/diceTray/DicePlayerRolls.svelte   | 114 +++++
  .../src/lib/diceTray/DiceTrayResults.svelte   | 119 +++++
  apps/frontend/src/lib/diceTray/DieIcon.svelte |  47 ++
- .../src/lib/diceTray/diceTray.svelte.spec.ts  | 225 +++++++++
- .../src/lib/diceTray/diceTray.svelte.ts       | 441 ++++++++++++++++++
+ .../src/lib/diceTray/diceTray.svelte.spec.ts  | 248 ++++++++++
+ .../src/lib/diceTray/diceTray.svelte.ts       | 450 ++++++++++++++++++
+ apps/frontend/src/lib/diceTray/rollDisplay.ts |  92 ++++
  .../src/lib/i18n/identicalTranslations.ts     |   1 +
  .../[roomId]/ConversationPane.svelte          |   4 +
- 13 files changed, 1336 insertions(+), 2 deletions(-)
+ 15 files changed, 1523 insertions(+), 2 deletions(-)
  create mode 100644 apps/frontend/src/lib/components/composer/ComposerDiceTray.svelte
  create mode 100644 apps/frontend/src/lib/diceTray/DiceBar.svelte
+ create mode 100644 apps/frontend/src/lib/diceTray/DicePlayerRolls.svelte
  create mode 100644 apps/frontend/src/lib/diceTray/DiceTrayResults.svelte
  create mode 100644 apps/frontend/src/lib/diceTray/DieIcon.svelte
  create mode 100644 apps/frontend/src/lib/diceTray/diceTray.svelte.spec.ts
  create mode 100644 apps/frontend/src/lib/diceTray/diceTray.svelte.ts
+ create mode 100644 apps/frontend/src/lib/diceTray/rollDisplay.ts
 
 diff --git a/apps/frontend/messages/de-DE/composer.json b/apps/frontend/messages/de-DE/composer.json
 index c3a75ff26..b83a60749 100644
@@ -332,10 +336,10 @@ index 62fd93fe2..5f34e976b 100644
        draftKey: this.draftKey,
 diff --git a/apps/frontend/src/lib/diceTray/DiceBar.svelte b/apps/frontend/src/lib/diceTray/DiceBar.svelte
 new file mode 100644
-index 000000000..2b8f52a7c
+index 000000000..15cb2cf2e
 --- /dev/null
 +++ b/apps/frontend/src/lib/diceTray/DiceBar.svelte
-@@ -0,0 +1,337 @@
+@@ -0,0 +1,286 @@
 +<!--
 +@component
 +
@@ -363,6 +367,15 @@ index 000000000..2b8f52a7c
 +    type DiceSystem
 +  } from './diceTray.svelte';
 +  import DieIcon from './DieIcon.svelte';
++  import DicePlayerRolls from './DicePlayerRolls.svelte';
++  import {
++    dieColours,
++    dualityColour,
++    dualityLabels,
++    dualityOf,
++    swadeOutcomeOf,
++    unusedKindsOf
++  } from './rollDisplay';
 +
 +  let {
 +    roomId,
@@ -396,13 +409,7 @@ index 000000000..2b8f52a7c
 +  const timedOut = $derived(sent !== null && timedOutAt === sent.atMs);
 +  const latest = $derived(tray.rolls(roomId).latestOf(serverScope.store.accountId));
 +  const result = $derived(sent && latest && latest.eventId !== sent.before ? latest : null);
-+  // Daggerheart duality roll: Hope, Fear, or a critical success on a double.
-+  const duality = $derived.by(() => {
-+    const hope = result?.dice.find((die) => die.kind === 'hope');
-+    const fear = result?.dice.find((die) => die.kind === 'fear');
-+    if (!hope || !fear) return null;
-+    return hope.value === fear.value ? 'crit' : hope.value > fear.value ? 'hope' : 'fear';
-+  });
++  const duality = $derived(dualityOf(result));
 +
 +  function apply(action: DiceAction): void {
 +    roll = applyDiceAction(roll, action);
@@ -425,62 +432,8 @@ index 000000000..2b8f52a7c
 +    wildChoice = null;
 +  }
 +
-+  // Savage Worlds trait roll with the Wild Die: the lower of trait die and Wild Die does not count.
-+  const unusedKinds = $derived.by(() => {
-+    const dice = result?.dice ?? [];
-+    if (!result?.swade || !dice.some((die) => die.kind === 'wild')) return new Set<string>();
-+    const sum = (wildDie: boolean) =>
-+      dice.filter((die) => (die.kind === 'wild') === wildDie).reduce((a, die) => a + die.value, 0);
-+    const wildWins = sum(true) > sum(false);
-+    return new Set(wildWins ? ['std', 'gm'] : ['wild']);
-+  });
-+
-+  // Thumbs up for a success with a green arrow per raise, thumbs down for a failure.
-+  const swadeOutcome = $derived.by(() => {
-+    const outcome = result?.swade;
-+    if (!outcome) return null;
-+    if (outcome === 'cf')
-+      return { up: false, crit: true, raises: 0, label: m('composer.dice_tray.outcome_crit_fail') };
-+    if (outcome === 'fail')
-+      return { up: false, crit: false, raises: 0, label: m('composer.dice_tray.outcome_fail') };
-+    const raises = outcome === 'ok' ? 0 : Number(outcome.slice(1));
-+    return {
-+      up: true,
-+      crit: false,
-+      raises,
-+      label:
-+        raises === 0
-+          ? m('composer.dice_tray.outcome_success')
-+          : m('composer.dice_tray.outcome_raises_count', { count: raises })
-+    };
-+  });
-+
-+  // Colours of the 3D dice in `$lib/dice/diceRenderer.ts`.
-+  const DIE_COLOURS: Record<string, { body: string; ink: string; edge?: string }> = {
-+    hope: { body: '#f2c230', ink: '#2a1a00', edge: '#a87b00' },
-+    fear: { body: '#4b2178', ink: '#f1e6ff', edge: '#8e44ad' },
-+    adv: { body: '#27ae60', ink: '#ffffff' },
-+    dis: { body: '#c0392b', ink: '#ffffff' },
-+    gm: { body: '#6e1a1a', ink: '#ffd27a' },
-+    wild: { body: '#d35400', ink: '#ffffff' },
-+    std: { body: '#f3efe4', ink: '#1f1f1f' },
-+    drop: { body: '#8d8d8d', ink: '#e6e6e6' }
-+  };
-+  const dieColours = (kind: string) => DIE_COLOURS[kind] ?? DIE_COLOURS.std;
-+  const OUTCOMES = {
-+    hope: {
-+      label: m('composer.dice_tray.outcome_hope'),
-+      short: m('composer.dice_tray.outcome_hope_short')
-+    },
-+    fear: {
-+      label: m('composer.dice_tray.outcome_fear'),
-+      short: m('composer.dice_tray.outcome_fear_short')
-+    },
-+    crit: {
-+      label: m('composer.dice_tray.outcome_crit'),
-+      short: m('composer.dice_tray.outcome_crit_short')
-+    }
-+  };
++  const unusedKinds = $derived(unusedKindsOf(result));
++  const swadeOutcome = $derived(swadeOutcomeOf(result));
 +  const signed = (value: number) => (value > 0 ? `+${value}` : `${value}`);
 +
 +  const buttonClass =
@@ -496,6 +449,9 @@ index 000000000..2b8f52a7c
 +  data-testid="dice-bar"
 +  onpointerdown={(event) => event.preventDefault()}
 +>
++  {#if tray.viewerIsGm}
++    <DicePlayerRolls {roomId} />
++  {/if}
 +  {#if sent}
 +    <div class="flex flex-col gap-2 p-1" aria-live="polite" data-testid="dice-bar-result">
 +      <div class="text-muted tabular-nums">{sent.command.replace(/^!\S+\s*/, '')}</div>
@@ -518,14 +474,11 @@ index 000000000..2b8f52a7c
 +                    ></span>{/each}{/if})<span class="sr-only">{swadeOutcome.label}</span></span
 +              >
 +            {:else if duality}
++              {@const labels = dualityLabels(duality)}
 +              <span
-+                style:color={duality === 'hope'
-+                  ? DIE_COLOURS.hope.edge
-+                  : duality === 'fear'
-+                    ? DIE_COLOURS.fear.edge
-+                    : undefined}
++                style:color={dualityColour(duality)}
 +                class={[duality === 'crit' && 'text-success']}
-+                title={OUTCOMES[duality].label}>({OUTCOMES[duality].short})</span
++                title={labels.label}>({labels.short})</span
 +              >
 +            {/if}
 +          </div>
@@ -673,6 +626,126 @@ index 000000000..2b8f52a7c
 +    </Button>
 +  {/if}
 +</div>
+diff --git a/apps/frontend/src/lib/diceTray/DicePlayerRolls.svelte b/apps/frontend/src/lib/diceTray/DicePlayerRolls.svelte
+new file mode 100644
+index 000000000..a83bdb03f
+--- /dev/null
++++ b/apps/frontend/src/lib/diceTray/DicePlayerRolls.svelte
+@@ -0,0 +1,114 @@
++<!--
++@component
++
++The GM's view of the players in the dice bar: the latest roll of each other
++roller in the room, newest first, with total, outcome and coloured dice. A roll
++that arrives while the bar is open flashes briefly. Results come from
++`DiceTrayResults`, which follows the room and its dice thread.
++-->
++<script lang="ts">
++  import { m } from '$lib/i18n/messages';
++  import { useServerScope } from '$lib/state/server/scope.svelte';
++  import { diceTray } from './diceTray.svelte';
++  import {
++    dieColours,
++    dualityColour,
++    dualityLabels,
++    dualityOf,
++    swadeOutcomeOf,
++    unusedKindsOf
++  } from './rollDisplay';
++
++  let { roomId }: { roomId: string } = $props();
++
++  /** Dice shown per row; the total covers the rest. */
++  const MAX_DICE = 5;
++
++  const serverScope = useServerScope();
++  const tray = diceTray(serverScope.serverId);
++  const rolls = $derived(tray.rolls(roomId).playerRolls(serverScope.store.accountId));
++  const openedAtMs = Date.now();
++</script>
++
++{#if rolls.length > 0}
++  <section
++    class="flex flex-col gap-0.5 border-b border-border px-1 pb-1.5"
++    aria-label={m('composer.dice_tray.per_player')}
++    aria-live="polite"
++    data-testid="dice-bar-players"
++  >
++    <div class="text-xs text-muted">{m('composer.dice_tray.per_player')}</div>
++    <ul class="flex flex-col gap-0.5">
++      {#each rolls as roll (roll.eventId)}
++        {@const duality = dualityOf(roll)}
++        {@const swade = swadeOutcomeOf(roll)}
++        {@const unused = unusedKindsOf(roll)}
++        <li
++          class={[
++            'flex items-center gap-1.5 rounded px-1 py-0.5 text-sm',
++            roll.createdAtMs > openedAtMs && 'fresh'
++          ]}
++          title={roll.text}
++        >
++          <span class="min-w-0 flex-1 truncate">{roll.rollerName ?? roll.text}</span>
++          <span class="flex shrink-0 items-center gap-0.5" aria-hidden="true">
++            {#each roll.dice.slice(0, MAX_DICE) as die, index (index)}
++              {@const colours = dieColours(die.kind)}
++              <span
++                class={[
++                  'flex h-5 min-w-5 items-center justify-center rounded border border-text/25 px-0.5 text-[0.7rem] leading-none font-semibold tabular-nums',
++                  (die.kind === 'drop' || unused.has(die.kind)) && 'line-through opacity-60'
++                ]}
++                style:background-color={colours.body}
++                style:color={colours.ink}>{die.value}</span
++              >
++            {/each}
++            {#if roll.dice.length > MAX_DICE}<span class="text-xs text-muted">…</span>{/if}
++          </span>
++          {#if roll.total !== null}
++            <span class="flex shrink-0 items-baseline gap-0.5 font-semibold tabular-nums">
++              {roll.total}
++              {#if swade}
++                <span class={[swade.crit && 'text-danger']} title={swade.label}
++                  ><span aria-hidden="true">{swade.up ? '👍' : '👎'}</span
++                  >{#if swade.raises > 0}<span class="text-success" aria-hidden="true"
++                      >+{swade.raises}</span
++                    >{/if}<span class="sr-only">{swade.label}</span></span
++                >
++              {:else if duality}
++                {@const labels = dualityLabels(duality)}
++                <span
++                  style:color={dualityColour(duality)}
++                  class={[duality === 'crit' && 'text-success']}
++                  title={labels.label}
++                  >({labels.short})<span class="sr-only">{labels.label}</span></span
++                >
++              {/if}
++            </span>
++          {/if}
++        </li>
++      {/each}
++    </ul>
++  </section>
++{/if}
++
++<style>
++  .fresh {
++    animation: dice-player-flash 2s ease-out;
++  }
++
++  @keyframes dice-player-flash {
++    from {
++      background-color: color-mix(in srgb, var(--color-action) 30%, transparent);
++    }
++    to {
++      background-color: transparent;
++    }
++  }
++
++  @media (prefers-reduced-motion: reduce) {
++    .fresh {
++      animation: none;
++    }
++  }
++</style>
 diff --git a/apps/frontend/src/lib/diceTray/DiceTrayResults.svelte b/apps/frontend/src/lib/diceTray/DiceTrayResults.svelte
 new file mode 100644
 index 000000000..0355987d8
@@ -853,10 +926,10 @@ index 000000000..e5a6c8b40
 +</svg>
 diff --git a/apps/frontend/src/lib/diceTray/diceTray.svelte.spec.ts b/apps/frontend/src/lib/diceTray/diceTray.svelte.spec.ts
 new file mode 100644
-index 000000000..99c9d7e25
+index 000000000..91b129da3
 --- /dev/null
 +++ b/apps/frontend/src/lib/diceTray/diceTray.svelte.spec.ts
-@@ -0,0 +1,225 @@
+@@ -0,0 +1,248 @@
 +import { describe, expect, it } from 'vitest';
 +import {
 +  ServerDiceTray,
@@ -969,6 +1042,7 @@ index 000000000..99c9d7e25
 +    expect(roll).toEqual({
 +      eventId: 'e1',
 +      rollerId: 'u_phil',
++      rollerName: 'Phil',
 +      gm: true,
 +      text: 'Phil 🎲 12 — 3d6+4: [2, 5, 1]+4 = 12',
 +      createdAtMs: 1000,
@@ -1022,6 +1096,28 @@ index 000000000..99c9d7e25
 +    expect(tray.viewerIsGm).toBe(true);
 +    expect(tray.diceThread('r')).toBe('t1');
 +    expect(new ServerDiceTray('srv').diceThread('r')).toBe('t1');
++  });
++
++  it('lists the latest roll of the other rollers for the GM, newest first and limited', () => {
++    localStorage.clear();
++    const tray = new ServerDiceTray('srv-players');
++    tray.ingest('r', roll('a', 'u_bob', 1), 't', 'u_gm', { live: true });
++    tray.ingest('r', roll('b', 'u_gm', 2, true), 't', 'u_gm', { live: true });
++    tray.ingest('r', roll('c', 'u_carol', 3), 't', 'u_gm', { live: true });
++    tray.ingest('r', roll('d', 'u_bob', 4), 't', 'u_gm', { live: true });
++
++    expect(
++      tray
++        .rolls('r')
++        .playerRolls('u_gm')
++        .map((r) => r.eventId)
++    ).toEqual(['d', 'c']);
++    expect(
++      tray
++        .rolls('r')
++        .playerRolls('u_gm', 1)
++        .map((r) => r.eventId)
++    ).toEqual(['d']);
 +  });
 +
 +  it('keeps notes out of the latest rolls and shows them to their roller only', () => {
@@ -1084,10 +1180,10 @@ index 000000000..99c9d7e25
 +});
 diff --git a/apps/frontend/src/lib/diceTray/diceTray.svelte.ts b/apps/frontend/src/lib/diceTray/diceTray.svelte.ts
 new file mode 100644
-index 000000000..2c3924f4b
+index 000000000..501e92831
 --- /dev/null
 +++ b/apps/frontend/src/lib/diceTray/diceTray.svelte.ts
-@@ -0,0 +1,441 @@
+@@ -0,0 +1,450 @@
 +/**
 + * Dice tray: a dice bar at the composer and the latest dice bot results.
 + *
@@ -1266,6 +1362,8 @@ index 000000000..2c3924f4b
 +export type TrayRoll = {
 +  eventId: string;
 +  rollerId: string;
++  /** The roller's display name as the bot wrote it, or null. */
++  rollerName: string | null;
 +  gm: boolean;
 +  /** Readable result without markup, for example `Phil 🎲 12 — 3d6+4: [2, 5, 1]+4 = 12`. */
 +  text: string;
@@ -1325,11 +1423,13 @@ index 000000000..2c3924f4b
 +  );
 +  const rollerId = params.by;
 +  if (!rollerId) return null;
++  const rollerName = ROLLER_NAME.exec(body)?.[0];
 +  const result = body.replace(ROLLER_NAME, '');
 +  const total = /\*\*(-?\d+)\*\*/.exec(result.replace(MARKER, ''))?.[1];
 +  return {
 +    eventId,
 +    rollerId,
++    rollerName: rollerName ? plainText(rollerName) || null : null,
 +    gm: params.gm === '1',
 +    text: plainText(body),
 +    createdAtMs,
@@ -1374,6 +1474,11 @@ index 000000000..2c3924f4b
 +    const byRoller: Record<string, TrayRoll> = {};
 +    for (const roll of this.rolls) if (!roll.note) byRoller[roll.rollerId] = roll;
 +    return Object.values(byRoller).sort((a, b) => b.createdAtMs - a.createdAtMs);
++  }
++
++  /** The latest roll of each roller except the viewer, newest first: the GM's view of the players. */
++  playerRolls(viewerId: string | null, limit = 5): TrayRoll[] {
++    return this.latestPerRoller.filter((roll) => roll.rollerId !== viewerId).slice(0, limit);
 +  }
 +}
 +
@@ -1528,6 +1633,104 @@ index 000000000..2c3924f4b
 +/** The dice tray state of a server, shared by its composers and panes. */
 +export function diceTray(serverId: string): ServerDiceTray {
 +  return (trays[serverId] ??= new ServerDiceTray(serverId));
++}
+diff --git a/apps/frontend/src/lib/diceTray/rollDisplay.ts b/apps/frontend/src/lib/diceTray/rollDisplay.ts
+new file mode 100644
+index 000000000..cb455ad74
+--- /dev/null
++++ b/apps/frontend/src/lib/diceTray/rollDisplay.ts
+@@ -0,0 +1,92 @@
++/**
++ * How the dice bar shows a dice bot result: die colours, the Daggerheart
++ * duality outcome, the Savage Worlds outcome and the dice that do not count.
++ * Shared by the viewer's own result and the GM's list of player rolls.
++ */
++import { m } from '$lib/i18n/messages';
++import type { TrayRoll } from './diceTray.svelte';
++
++// Colours of the 3D dice in `$lib/dice/diceRenderer.ts`.
++export const DIE_COLOURS: Record<string, { body: string; ink: string; edge?: string }> = {
++  hope: { body: '#f2c230', ink: '#2a1a00', edge: '#a87b00' },
++  fear: { body: '#4b2178', ink: '#f1e6ff', edge: '#8e44ad' },
++  adv: { body: '#27ae60', ink: '#ffffff' },
++  dis: { body: '#c0392b', ink: '#ffffff' },
++  gm: { body: '#6e1a1a', ink: '#ffd27a' },
++  wild: { body: '#d35400', ink: '#ffffff' },
++  std: { body: '#f3efe4', ink: '#1f1f1f' },
++  drop: { body: '#8d8d8d', ink: '#e6e6e6' }
++};
++
++export const dieColours = (kind: string) => DIE_COLOURS[kind] ?? DIE_COLOURS.std;
++
++export type Duality = 'hope' | 'fear' | 'crit';
++
++/** Daggerheart duality roll: Hope, Fear, or a critical success on a double. */
++export function dualityOf(roll: TrayRoll | null): Duality | null {
++  const hope = roll?.dice.find((die) => die.kind === 'hope');
++  const fear = roll?.dice.find((die) => die.kind === 'fear');
++  if (!hope || !fear) return null;
++  return hope.value === fear.value ? 'crit' : hope.value > fear.value ? 'hope' : 'fear';
++}
++
++export function dualityLabels(duality: Duality): { label: string; short: string } {
++  switch (duality) {
++    case 'hope':
++      return {
++        label: m('composer.dice_tray.outcome_hope'),
++        short: m('composer.dice_tray.outcome_hope_short')
++      };
++    case 'fear':
++      return {
++        label: m('composer.dice_tray.outcome_fear'),
++        short: m('composer.dice_tray.outcome_fear_short')
++      };
++    case 'crit':
++      return {
++        label: m('composer.dice_tray.outcome_crit'),
++        short: m('composer.dice_tray.outcome_crit_short')
++      };
++  }
++}
++
++/** Text colour of a duality outcome; a critical success uses `text-success` instead. */
++export function dualityColour(duality: Duality): string | undefined {
++  return duality === 'hope'
++    ? DIE_COLOURS.hope.edge
++    : duality === 'fear'
++      ? DIE_COLOURS.fear.edge
++      : undefined;
++}
++
++/** Savage Worlds trait roll with the Wild Die: the lower of trait die and Wild Die does not count. */
++export function unusedKindsOf(roll: TrayRoll | null): Set<string> {
++  const dice = roll?.dice ?? [];
++  if (!roll?.swade || !dice.some((die) => die.kind === 'wild')) return new Set<string>();
++  const sum = (wildDie: boolean) =>
++    dice.filter((die) => (die.kind === 'wild') === wildDie).reduce((a, die) => a + die.value, 0);
++  const wildWins = sum(true) > sum(false);
++  return new Set(wildWins ? ['std', 'gm'] : ['wild']);
++}
++
++export type SwadeOutcome = { up: boolean; crit: boolean; raises: number; label: string };
++
++/** Thumbs up for a success with a green arrow per raise, thumbs down for a failure. */
++export function swadeOutcomeOf(roll: TrayRoll | null): SwadeOutcome | null {
++  const outcome = roll?.swade;
++  if (!outcome) return null;
++  if (outcome === 'cf')
++    return { up: false, crit: true, raises: 0, label: m('composer.dice_tray.outcome_crit_fail') };
++  if (outcome === 'fail')
++    return { up: false, crit: false, raises: 0, label: m('composer.dice_tray.outcome_fail') };
++  const raises = outcome === 'ok' ? 0 : Number(outcome.slice(1));
++  return {
++    up: true,
++    crit: false,
++    raises,
++    label:
++      raises === 0
++        ? m('composer.dice_tray.outcome_success')
++        : m('composer.dice_tray.outcome_raises_count', { count: raises })
++  };
 +}
 diff --git a/apps/frontend/src/lib/i18n/identicalTranslations.ts b/apps/frontend/src/lib/i18n/identicalTranslations.ts
 index 117d6ec97..60da68894 100644
