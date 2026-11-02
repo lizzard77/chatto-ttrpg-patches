@@ -148,3 +148,8 @@ note to the roller only. A reply to the bot's system command carries
 - at most 24 dice; an invalid marker stays an ordinary (dead) link
 
 Without the patch clients see a plain 🎲 link; without a bot nothing happens – each side works alone.
+
+## License
+
+[GNU Affero General Public License v3.0](LICENSE), the same as upstream Chatto. The patches are modifications
+of AGPL-licensed code; the scripts, Dockerfile and workflow in this repository are under the same license.
