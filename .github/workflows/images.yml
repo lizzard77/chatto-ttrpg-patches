@@ -48,6 +48,7 @@ jobs:
           tags: |
             ghcr.io/lizzard77/chatto:${{ steps.v.outputs.version }}
             ghcr.io/lizzard77/chatto:${{ steps.v.outputs.version }}-${{ steps.v.outputs.sha }}
+            ghcr.io/lizzard77/chatto:latest
           cache-from: type=gha,scope=chatto
           cache-to: type=gha,mode=max,scope=chatto
 

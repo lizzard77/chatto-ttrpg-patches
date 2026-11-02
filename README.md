@@ -35,7 +35,7 @@ pnpm is fetched with `npx`. To run the result, follow upstream's docs with the b
 
 Every push to `main` that changes `CHATTO_VERSION`, `patches/` or `docker/` runs
 `.github/workflows/images.yml` (also manually: `gh workflow run images.yml`):
-`ghcr.io/lizzard77/chatto:<CHATTO_VERSION>` (latest build of that version) and `…:<version>-<sha>`.
+`ghcr.io/lizzard77/chatto:<CHATTO_VERSION>` (latest build of that version), `…:<version>-<sha>` and `…:latest` (most recent build).
 Use it in place of the official image, e.g. `image: ghcr.io/lizzard77/chatto:0.5.0-beta.23` in Docker
 Compose. Take a backup before changing versions:
 `docker exec chatto /chatto backup --include-keys -o /backups/<name>.tar.gz`.

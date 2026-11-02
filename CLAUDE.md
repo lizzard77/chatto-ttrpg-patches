@@ -53,7 +53,7 @@ Fork features communicate through **marker links in message bodies** rather than
 
 ## CI / image
 
-`.github/workflows/images.yml` runs on pushes to `main` touching `CHATTO_VERSION`, `patches/`, `docker/` (or `gh workflow run images.yml`). It builds `docker/chatto.Dockerfile` (clone upstream tag → `git am` patches → build frontend + Go binary → copy the binary over the official `ghcr.io/chattocorp/chatto:<version>` image). Tags: `ghcr.io/lizzard77/chatto:<version>` and `:<version>-<sha>`. The image build runs no upstream tests.
+`.github/workflows/images.yml` runs on pushes to `main` touching `CHATTO_VERSION`, `patches/`, `docker/` (or `gh workflow run images.yml`). It builds `docker/chatto.Dockerfile` (clone upstream tag → `git am` patches → build frontend + Go binary → copy the binary over the official `ghcr.io/chattocorp/chatto:<version>` image). Tags: `ghcr.io/lizzard77/chatto:<version>`, `:<version>-<sha>` and `:latest` (the most recent build on `main`). The image build runs no upstream tests.
 
 The Dockerfile builds the Go binary itself, so its `-tags` must match upstream's `.github/workflows/release.yml` (currently `nomsgpack,nodynamic`; without `nodynamic` the binary links against glibc and fails on the Alpine base with `su-exec: /chatto: No such file or directory`). The final stage runs `/chatto --version` as a smoke test.
 
