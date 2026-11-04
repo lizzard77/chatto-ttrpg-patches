@@ -978,11 +978,11 @@ index fd6d315b6..b49c545ac 100644
    'chat',
    'common',
 diff --git a/apps/frontend/src/lib/markdown.ts b/apps/frontend/src/lib/markdown.ts
-index 3264c8b5d..2e1560847 100644
+index 3a5156b55..c06261b91 100644
 --- a/apps/frontend/src/lib/markdown.ts
 +++ b/apps/frontend/src/lib/markdown.ts
-@@ -2,6 +2,7 @@ import MarkdownIt from 'markdown-it';
- import { parseArtifactFence, type ArtifactFence } from './artifactFence';
+@@ -3,6 +3,7 @@ import { parseArtifactFence, type ArtifactFence } from './artifactFence';
+ import { MAX_SVG_SOURCE_LENGTH } from './svgPolicy';
  import { isMermaidSourceAllowed, MAX_MERMAID_PREVIEWS } from './mermaid/policy';
  import footnotePlugin from 'markdown-it-footnote';
 +import { isAnnotationHref } from '$lib/annotations/annotationSpec';
@@ -1070,7 +1070,7 @@ index 05b5821cd..8c2736192 100644
    {:else}
      <img
 diff --git a/apps/frontend/src/lib/ui/ZoomableImage.svelte b/apps/frontend/src/lib/ui/ZoomableImage.svelte
-index f653cd66e..8c06d24a5 100644
+index 8228aef9c..e7fc48811 100644
 --- a/apps/frontend/src/lib/ui/ZoomableImage.svelte
 +++ b/apps/frontend/src/lib/ui/ZoomableImage.svelte
 @@ -7,9 +7,18 @@ Controls live in the viewer footer when one is provided through context.
@@ -1092,18 +1092,20 @@ index f653cd66e..8c06d24a5 100644
    import { SvelteMap } from 'svelte/reactivity';
    import { m } from '$lib/i18n/messages';
    import { useImageControls, hasImageControls } from './imageControlsContext';
-@@ -17,11 +26,17 @@ Controls live in the viewer footer when one is provided through context.
-   let {
+@@ -20,13 +29,19 @@ Controls live in the viewer footer when one is provided through context.
      src,
      alt,
--    onerror
-+    onerror,
+     onerror,
+-    svgSource
++    svgSource,
 +    overlay,
 +    toolbar
    }: {
      src: string;
      alt: string;
      onerror: () => void;
+     /** Sanitized source for an animated diagram, separate from uploaded images. */
+     svgSource?: string;
 +    /** Drawn over the image with its box and transform (fork: image annotations). */
 +    overlay?: Snippet<[ZoomableImageOverlay]>;
 +    /** Extra controls next to the zoom buttons. */
@@ -1111,15 +1113,15 @@ index f653cd66e..8c06d24a5 100644
    } = $props();
  
    let stage: HTMLDivElement;
-@@ -45,6 +60,7 @@ Controls live in the viewer footer when one is provided through context.
-   const pointers = new SvelteMap<number, { x: number; y: number }>();
+@@ -51,6 +66,7 @@ Controls live in the viewer footer when one is provided through context.
    const percent = $derived(Math.round(zoom * 100));
+   const poster = $derived(svgSource ? svgDataUrl(svgAnimationPoster(svgSource)) : src);
    const limits = $derived(bounds());
 +  const transform = $derived(`translate(${offsetX}px, ${offsetY}px) scale(${zoom})`);
  
    /** Limit panning to the fitted image's enlarged edges. */
    function bounds(atZoom = zoom) {
-@@ -236,7 +252,7 @@ Controls live in the viewer footer when one is provided through context.
+@@ -246,7 +262,7 @@ Controls live in the viewer footer when one is provided through context.
    >
      <div
        class="image-canvas-layer absolute inset-0"
@@ -1127,10 +1129,10 @@ index f653cd66e..8c06d24a5 100644
 +      style:transform
      >
        <img
-         {src}
-@@ -248,6 +264,14 @@ Controls live in the viewer footer when one is provided through context.
-         {onerror}
-       />
+         src={poster}
+@@ -269,6 +285,14 @@ Controls live in the viewer footer when one is provided through context.
+         </div>
+       {/if}
      </div>
 +    {#if overlay && naturalWidth && naturalHeight}
 +      {@render overlay({
@@ -1143,7 +1145,7 @@ index f653cd66e..8c06d24a5 100644
      <span
        aria-hidden="true"
        class={[
-@@ -312,5 +336,6 @@ Controls live in the viewer footer when one is provided through context.
+@@ -333,5 +357,6 @@ Controls live in the viewer footer when one is provided through context.
      >
        {m('ui.image_modal.fit')}
      </button>

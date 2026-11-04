@@ -1409,10 +1409,10 @@ index 7995311c5..fd6d315b6 100644
    'error_page',
    'media',
 diff --git a/apps/frontend/src/lib/markdown.ts b/apps/frontend/src/lib/markdown.ts
-index a014347f1..3264c8b5d 100644
+index 1cb0e6487..3a5156b55 100644
 --- a/apps/frontend/src/lib/markdown.ts
 +++ b/apps/frontend/src/lib/markdown.ts
-@@ -11,6 +11,7 @@ import { renderedLinkTarget } from '$lib/navigation/renderedLink';
+@@ -12,6 +12,7 @@ import { renderedLinkTarget } from '$lib/navigation/renderedLink';
  import { collectMentionHandles, MENTIONS_ENV_KEY, mentionPlugin } from '$lib/markdownMentions';
  import { m } from '$lib/i18n/messages';
  import { emojiPlugin } from './markdownEmoji';
@@ -1465,10 +1465,10 @@ index a014347f1..3264c8b5d 100644
    md.renderer.rules.hardbreak = renderChatLineBreak;
    md.renderer.rules.table_open = () => '<div class="table-scroll" tabindex="0"><table>\n';
 diff --git a/apps/frontend/src/lib/ui/MarkdownHtml.svelte b/apps/frontend/src/lib/ui/MarkdownHtml.svelte
-index 5e879bf27..31907b4b4 100644
+index 5c7f0b345..f9ea523d2 100644
 --- a/apps/frontend/src/lib/ui/MarkdownHtml.svelte
 +++ b/apps/frontend/src/lib/ui/MarkdownHtml.svelte
-@@ -74,6 +74,15 @@ targets are unique to each component, including when callers reuse rendered HTML
+@@ -78,6 +78,15 @@ targets are unique to each component, including when callers reuse rendered HTML
        return;
      }
  

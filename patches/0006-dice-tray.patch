@@ -218,7 +218,7 @@ index 0a83d23cb..e60bd0bfb 100644
      <ComposerTimestampPicker disabled={inputDisabled} {editorApi} {effectiveTimezone} />
    </div>
 diff --git a/apps/frontend/src/lib/components/composer/MessageComposer.svelte b/apps/frontend/src/lib/components/composer/MessageComposer.svelte
-index 70c8ec801..313e34e5a 100644
+index 7f7bf6720..3337a342e 100644
 --- a/apps/frontend/src/lib/components/composer/MessageComposer.svelte
 +++ b/apps/frontend/src/lib/components/composer/MessageComposer.svelte
 @@ -8,9 +8,12 @@
@@ -285,7 +285,7 @@ index 70c8ec801..313e34e5a 100644
        </div>
      </div>
 diff --git a/apps/frontend/src/lib/components/composer/messageComposerState.svelte.ts b/apps/frontend/src/lib/components/composer/messageComposerState.svelte.ts
-index 62fd93fe2..5f34e976b 100644
+index 96bba982e..d214dcff2 100644
 --- a/apps/frontend/src/lib/components/composer/messageComposerState.svelte.ts
 +++ b/apps/frontend/src/lib/components/composer/messageComposerState.svelte.ts
 @@ -121,6 +121,8 @@ type MessageComposerDependencies = {
@@ -297,7 +297,7 @@ index 62fd93fe2..5f34e976b 100644
  };
  
  export function bodyForSend(text: string): string {
-@@ -423,6 +425,28 @@ export class MessageComposerState {
+@@ -415,6 +417,28 @@ export class MessageComposerState {
      this.autocomplete.update();
    }
  
@@ -326,7 +326,7 @@ index 62fd93fe2..5f34e976b 100644
    handleEditorReady(api: ComposerEditorApi): void {
      this.editorApi = api;
      if (this.message) api.setContent(this.message);
-@@ -631,6 +655,7 @@ export class MessageComposerState {
+@@ -623,6 +647,7 @@ export class MessageComposerState {
      const bodyToSend = bodyForSend(this.message);
      const filesToSend = this.hasSendableAttachments ? [...this.attachments.selectedFiles] : null;
      if (!hasVisibleContent(bodyToSend) && !filesToSend) return;

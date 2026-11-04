@@ -98,10 +98,10 @@ index 09cbc2b08..fd3930563 100644
        "contrast": {
          "label": "Contrast",
 diff --git a/apps/frontend/src/app.css b/apps/frontend/src/app.css
-index 13ee87605..9af94054f 100644
+index 4aef8493e..0c04dff06 100644
 --- a/apps/frontend/src/app.css
 +++ b/apps/frontend/src/app.css
-@@ -544,6 +544,11 @@
+@@ -543,6 +543,11 @@
    --accent-strong: var(--color-neutral-700);
    --accent-bright: var(--color-neutral-300);
  }
@@ -113,7 +113,7 @@ index 13ee87605..9af94054f 100644
  
  /*
   * Surface tones.
-@@ -780,7 +785,10 @@
+@@ -779,7 +784,10 @@
  :root[data-theme='dark'][data-dark-tone='plum'],
  [data-tone='clay'],
  :root:not([data-theme='dark'])[data-light-tone='clay'],
@@ -125,7 +125,7 @@ index 13ee87605..9af94054f 100644
    --tone-source-100: oklch(50% calc(var(--tone-chroma) * 0.2) var(--tone-hue));
    --tone-source-200: oklch(50% calc(var(--tone-chroma) * 0.3) var(--tone-hue));
    --tone-source-300: oklch(50% calc(var(--tone-chroma) * 0.45) var(--tone-hue));
-@@ -816,6 +824,13 @@
+@@ -815,6 +823,13 @@
    --tone-hue: 45;
    --tone-chroma: 0.06;
  }
