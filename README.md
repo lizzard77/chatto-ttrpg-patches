@@ -12,8 +12,7 @@ to the version in `CHATTO_VERSION` with all patches applied as commits.
 |---|---|
 | `CHATTO_VERSION` | Upstream version the patches apply to |
 | `patches/` | Changes to the upstream code (`git am` format), see below |
-| `docker/chatto.Dockerfile` | Builds the upstream tag plus patches and puts the binary on top of the official image |
-| `.github/workflows/images.yml` | Builds and pushes `ghcr.io/lizzard77/chatto` |
+| `.github/workflows/images.yml` | Builds the upstream tag plus patches the way upstream does and pushes `ghcr.io/lizzard77/chatto` |
 | `scripts/` | Check out upstream, build, export patches |
 
 ## Development
@@ -33,8 +32,10 @@ pnpm is fetched with `npx`. To run the result, follow upstream's docs with the b
 
 ## Image
 
-Every push to `main` that changes `CHATTO_VERSION`, `patches/` or `docker/` runs
-`.github/workflows/images.yml` (also manually: `gh workflow run images.yml`):
+Every push to `main` that changes `CHATTO_VERSION` or `patches/` runs `.github/workflows/images.yml`
+(also manually: `gh workflow run images.yml`). It follows upstream's own image job: upstream's setup action,
+`mise build-frontend`, `go build` and upstream's `docker/Dockerfile.goreleaser`, so the image matches the
+official one apart from the patches. Tags:
 `ghcr.io/lizzard77/chatto:<CHATTO_VERSION>` (latest build of that version), `…:<version>-<sha>` and `…:latest` (most recent build).
 Use it in place of the official image, e.g. `image: ghcr.io/lizzard77/chatto:0.5.0-beta.23` in Docker
 Compose. Take a backup before changing versions:
@@ -154,4 +155,4 @@ Without the patch clients see a plain 🎲 link; without a bot nothing happens �
 ## License
 
 [GNU Affero General Public License v3.0](LICENSE), the same as upstream Chatto. The patches are modifications
-of AGPL-licensed code; the scripts, Dockerfile and workflow in this repository are under the same license.
+of AGPL-licensed code; the scripts and workflow in this repository are under the same license.

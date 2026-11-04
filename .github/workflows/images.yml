@@ -1,6 +1,10 @@
 # Baut das gepatchte Chatto-Image und pusht es nach GHCR.
 #   ghcr.io/lizzard77/chatto:<CHATTO_VERSION>          (gleitend: neuester Build dieser Version)
 #   ghcr.io/lizzard77/chatto:<CHATTO_VERSION>-<sha>    (fest)
+#   ghcr.io/lizzard77/chatto:latest                    (neuester Build auf main)
+# Ablauf wie Upstreams Job `build-image` in .github/workflows/release.yml: Upstream-Tag + Patches,
+# Upstreams Setup-Action, `mise build-frontend`, `go build`, Image aus docker/Dockerfile.goreleaser.
+# Ändert upstream diesen Job, die Schritte „Frontend bauen“ und „Docker-Kontext“ hier nachziehen.
 name: images
 
 on:
@@ -9,7 +13,6 @@ on:
     paths:
       - CHATTO_VERSION
       - patches/**
-      - docker/**
       - .github/workflows/images.yml
   workflow_dispatch:
 
@@ -26,12 +29,51 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
-      - name: Version
+      - uses: actions/checkout@v6
+      - name: Version und Patches sichern
         id: v
         run: |
-          echo "version=$(tr -d '[:space:]' < CHATTO_VERSION)" >> "$GITHUB_OUTPUT"
+          version="$(tr -d '[:space:]' < CHATTO_VERSION)"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "build=${version}+lizzard.${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          cp -r patches "$RUNNER_TEMP/patches"
+
+      # Upstream liegt im Workspace-Wurzelverzeichnis, das erwartet seine Setup-Action.
+      - uses: actions/checkout@v6
+        with:
+          repository: chattocorp/chatto
+          ref: v${{ steps.v.outputs.version }}
+      - name: Patches anwenden
+        run: git -c user.name=build -c user.email=build@localhost am "$RUNNER_TEMP"/patches/*.patch
+
+      - uses: ./.github/actions/setup
+        with:
+          turbo-remote-cache: 'false'
+
+      - name: Frontend bauen
+        run: mise build-frontend
+        env:
+          CHATTO_BUILD_VERSION: ${{ steps.v.outputs.build }}
+          CHATTO_FRONTEND_PRECOMPRESS: '1'
+
+      - name: Docker-Kontext
+        env:
+          VERSION: ${{ steps.v.outputs.build }}
+        run: |
+          set -euo pipefail
+          context="$RUNNER_TEMP/chatto-docker"
+          mkdir -p "$context/docker" "$context/LICENSES"
+          cp docker/Dockerfile.goreleaser "$context/Dockerfile"
+          cp docker/docker-entrypoint.sh docker/nats-wrapper.sh "$context/docker/"
+          cp LICENSES/AGPL-3.0-or-later.txt "$context/LICENSES/"
+          cp NOTICE "$context/NOTICE"
+          # Build-Tags wie upstream (release.yml)
+          (cd cli && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath \
+            -tags=nomsgpack \
+            -ldflags="-s -w -X main.Version=${VERSION}" \
+            -o "$context/chatto" .)
+
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -40,15 +82,17 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/build-push-action@v6
         with:
-          context: .
-          file: docker/chatto.Dockerfile
-          build-args: CHATTO_VERSION=${{ steps.v.outputs.version }}
+          context: ${{ runner.temp }}/chatto-docker
           platforms: linux/amd64
           push: true
           tags: |
             ghcr.io/lizzard77/chatto:${{ steps.v.outputs.version }}
             ghcr.io/lizzard77/chatto:${{ steps.v.outputs.version }}-${{ steps.v.outputs.sha }}
             ghcr.io/lizzard77/chatto:latest
+          labels: |
+            org.opencontainers.image.source=https://github.com/lizzard77/chatto-ttrpg-patches
+            org.opencontainers.image.description=Chatto with TTRPG patches (dice, image annotations, embedded links)
+            org.opencontainers.image.version=${{ steps.v.outputs.build }}
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
           cache-from: type=gha,scope=chatto
           cache-to: type=gha,mode=max,scope=chatto
-

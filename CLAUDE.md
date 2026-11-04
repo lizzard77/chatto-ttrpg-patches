@@ -34,7 +34,7 @@ scripts/build.sh --check    # additionally svelte-check (only meaningful after t
 
 `scripts/lib.sh` wraps `pnpm`: it runs the version pinned in `upstream/mise.toml` via `npx`, under Node 24 through `fnm` if installed. Go version also comes from `upstream/mise.toml`. `.dev/` (gitignored) is the state directory of the external dev-server script.
 
-Known expected failures with the patches applied: upstream's `catalogs.spec.ts` (new i18n strings exist only in en-GB and de-DE). Upstream removed its bundle budget check in 0.5.0-beta.16. Also failing: two Slow-Mode/Markdown-editor tests in `MessageComposer.svelte.spec.ts` (fail upstream too) and `appearance.page.svelte.spec.ts` (panel count, from 0002).
+Known expected failures with the patches applied: upstream's `catalogs.spec.ts` (new i18n strings exist only in en-GB and de-DE). Also failing: two Slow-Mode/Markdown-editor tests in `MessageComposer.svelte.spec.ts` (fail upstream too) and `appearance.page.svelte.spec.ts` (panel count, from 0002).
 
 ## Patches (summary — details in README.md)
 
@@ -53,9 +53,9 @@ Fork features communicate through **marker links in message bodies** rather than
 
 ## CI / image
 
-`.github/workflows/images.yml` runs on pushes to `main` touching `CHATTO_VERSION`, `patches/`, `docker/` (or `gh workflow run images.yml`). It builds `docker/chatto.Dockerfile` (clone upstream tag → `git am` patches → build frontend + Go binary → copy the binary over the official `ghcr.io/chattocorp/chatto:<version>` image). Tags: `ghcr.io/lizzard77/chatto:<version>`, `:<version>-<sha>` and `:latest` (the most recent build on `main`). The image build runs no upstream tests.
+`.github/workflows/images.yml` runs on pushes to `main` touching `CHATTO_VERSION` or `patches/` (or `gh workflow run images.yml`). It mirrors upstream's `build-image` job in `.github/workflows/release.yml`: check out the upstream tag → `git am` patches → upstream's `.github/actions/setup` → `mise build-frontend` → `go build` → image from upstream's `docker/Dockerfile.goreleaser`. No Dockerfile of our own. Tags: `ghcr.io/lizzard77/chatto:<version>`, `:<version>-<sha>` and `:latest` (the most recent build on `main`). The image build runs no upstream tests.
 
-The Dockerfile builds the Go binary itself, so its `-tags` must match upstream's `.github/workflows/release.yml` (currently `nomsgpack,nodynamic`; without `nodynamic` the binary links against glibc and fails on the Alpine base with `su-exec: /chatto: No such file or directory`). The final stage runs `/chatto --version` as a smoke test.
+Only the steps "Frontend bauen" and "Docker-Kontext" are copied from upstream's `release.yml` (incl. the `go build -tags`); compare them on each update. `Dockerfile.goreleaser` runs `/chatto --version` as a smoke test.
 
 ## Conventions
 
