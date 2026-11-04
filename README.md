@@ -143,6 +143,9 @@ invisible note marker instead: `[\u200b](#chatto-dice-note:by=<userId>)` (the li
 zero-width space, so no client shows it; it may carry `;sys=` too). The dice tray (0006) shows such a
 note to the roller only. A reply to the bot's system command carries
 `[\u200b](#chatto-dice-system:<system>)`, so the tray learns a system change before the next roll.
+Likewise a reply to the bot's mode commands (`!gm`, `!player`, `!mode`) carries
+`[\u200b](#chatto-dice-mode:by=<userId>;gm=0|1)`, so the tray switches between GM and player view
+(and the Wild Die default) at once; otherwise it learns the mode from the viewer's newest own roll.
 - `kind`: `hope`, `fear` (Daggerheart duality dice, gold/violet and labelled; together they produce
   the "with Hope / with Fear / Critical success" banner), `adv`/`dis` (d6 advantage/disadvantage),
   `gm` (GM's die), `wild` (Savage Worlds Wild Die, orange and labelled), `std`, `drop` (discarded die,

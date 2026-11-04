@@ -24,16 +24,16 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  .../composer/ComposerToolbar.svelte           |  10 +-
  .../composer/MessageComposer.svelte           |  25 +-
  .../composer/messageComposerState.svelte.ts   |  25 +
- apps/frontend/src/lib/diceTray/DiceBar.svelte | 286 +++++++++++
+ apps/frontend/src/lib/diceTray/DiceBar.svelte | 287 +++++++++++
  .../src/lib/diceTray/DicePlayerRolls.svelte   | 114 +++++
- .../src/lib/diceTray/DiceTrayResults.svelte   | 119 +++++
+ .../src/lib/diceTray/DiceTrayResults.svelte   | 123 +++++
  apps/frontend/src/lib/diceTray/DieIcon.svelte |  47 ++
- .../src/lib/diceTray/diceTray.svelte.spec.ts  | 248 ++++++++++
- .../src/lib/diceTray/diceTray.svelte.ts       | 450 ++++++++++++++++++
+ .../src/lib/diceTray/diceTray.svelte.spec.ts  | 271 ++++++++++
+ .../src/lib/diceTray/diceTray.svelte.ts       | 481 ++++++++++++++++++
  apps/frontend/src/lib/diceTray/rollDisplay.ts |  92 ++++
  .../src/lib/i18n/identicalTranslations.ts     |   1 +
  .../[roomId]/ConversationPane.svelte          |   4 +
- 15 files changed, 1523 insertions(+), 2 deletions(-)
+ 15 files changed, 1582 insertions(+), 2 deletions(-)
  create mode 100644 apps/frontend/src/lib/components/composer/ComposerDiceTray.svelte
  create mode 100644 apps/frontend/src/lib/diceTray/DiceBar.svelte
  create mode 100644 apps/frontend/src/lib/diceTray/DicePlayerRolls.svelte
@@ -336,10 +336,10 @@ index 96bba982e..d214dcff2 100644
        draftKey: this.draftKey,
 diff --git a/apps/frontend/src/lib/diceTray/DiceBar.svelte b/apps/frontend/src/lib/diceTray/DiceBar.svelte
 new file mode 100644
-index 000000000..15cb2cf2e
+index 000000000..5e7fcfd5f
 --- /dev/null
 +++ b/apps/frontend/src/lib/diceTray/DiceBar.svelte
-@@ -0,0 +1,286 @@
+@@ -0,0 +1,287 @@
 +<!--
 +@component
 +
@@ -398,7 +398,8 @@ index 000000000..15cb2cf2e
 +  let roll = $state<DiceRoll>(emptyRoll());
 +  // Savage Worlds: the Wild Die is on for players and off in GM mode until the viewer picks.
 +  let wildChoice = $state<boolean | null>(null);
-+  const wild = $derived(wildChoice ?? !tray.viewerIsGm);
++  const viewerIsGm = $derived(tray.isGm(serverScope.store.accountId));
++  const wild = $derived(wildChoice ?? !viewerIsGm);
 +  const wildApplies = $derived(swade && !roll.damage && isTraitPool(roll.pool));
 +  const commandRoll = $derived<DiceRoll>({ ...roll, wild: wildApplies ? wild : null });
 +  const command = $derived(formatRollCommand(commandRoll));
@@ -449,7 +450,7 @@ index 000000000..15cb2cf2e
 +  data-testid="dice-bar"
 +  onpointerdown={(event) => event.preventDefault()}
 +>
-+  {#if tray.viewerIsGm}
++  {#if viewerIsGm}
 +    <DicePlayerRolls {roomId} />
 +  {/if}
 +  {#if sent}
@@ -748,10 +749,10 @@ index 000000000..a83bdb03f
 +</style>
 diff --git a/apps/frontend/src/lib/diceTray/DiceTrayResults.svelte b/apps/frontend/src/lib/diceTray/DiceTrayResults.svelte
 new file mode 100644
-index 000000000..0355987d8
+index 000000000..9def640e0
 --- /dev/null
 +++ b/apps/frontend/src/lib/diceTray/DiceTrayResults.svelte
-@@ -0,0 +1,119 @@
+@@ -0,0 +1,123 @@
 +<!--
 +@component
 +
@@ -768,7 +769,7 @@ index 000000000..0355987d8
 +  import { createRoomTimelineAPI } from '@chatto/client/api/roomTimeline';
 +  import { unmask } from '@chatto/client/room/messages/helpers';
 +  import { isMessagePostedEvent } from '@chatto/client/timeline/timelineEvents';
-+  import { diceTray, parseDiceSystem, parseTrayRoll } from './diceTray.svelte';
++  import { diceTray, parseDiceMode, parseDiceSystem, parseTrayRoll } from './diceTray.svelte';
 +
 +  let { roomId }: { roomId: string } = $props();
 +
@@ -776,7 +777,7 @@ index 000000000..0355987d8
 +  const stores = serverScope.store;
 +  const tray = diceTray(serverScope.serverId);
 +  const rolls = $derived(tray.rolls(roomId));
-+  const gm = $derived(tray.viewerIsGm);
++  const gm = $derived(tray.isGm(stores.accountId));
 +  const shown = $derived(gm ? rolls.latestPerRoller : rolls.latest ? [rolls.latest] : []);
 +  // The viewer's own error or hint, while no newer roll replaced it.
 +  const note = $derived.by(() => {
@@ -799,11 +800,13 @@ index 000000000..0355987d8
 +    const posted = semantic.value;
 +    if (posted.roomId !== roomId || posted.echoOfEventId) return;
 +    const body = posted.bodyPlaintext;
-+    // Covers dice markers (`#chatto-dice:`), notes and system markers.
++    // Covers dice markers (`#chatto-dice:`), notes, system and mode markers.
 +    if (!body?.includes('#chatto-dice')) return;
 +    const atMs = event.createdAt?.toDate().getTime() ?? Date.now();
 +    const system = parseDiceSystem(body);
 +    if (system) tray.noteSystem(roomId, system, atMs);
++    const mode = parseDiceMode(body);
++    if (mode) tray.noteMode(mode.userId, mode.gm, atMs);
 +    const roll = parseTrayRoll(event.id, body, atMs);
 +    if (!roll) return;
 +    tray.ingest(roomId, roll, posted.threadRootEventId || null, stores.accountId, { live: true });
@@ -824,6 +827,8 @@ index 000000000..0355987d8
 +          const atMs = Date.parse(view.createdAt);
 +          const system = parseDiceSystem(payload.body);
 +          if (system) tray.noteSystem(roomId, system, atMs);
++          const mode = parseDiceMode(payload.body);
++          if (mode) tray.noteMode(mode.userId, mode.gm, atMs);
 +          const roll = parseTrayRoll(view.id, payload.body, atMs);
 +          if (roll) tray.ingest(roomId, roll, threadRootEventId, stores.accountId, { live: false });
 +        }
@@ -926,10 +931,10 @@ index 000000000..e5a6c8b40
 +</svg>
 diff --git a/apps/frontend/src/lib/diceTray/diceTray.svelte.spec.ts b/apps/frontend/src/lib/diceTray/diceTray.svelte.spec.ts
 new file mode 100644
-index 000000000..91b129da3
+index 000000000..60032ad82
 --- /dev/null
 +++ b/apps/frontend/src/lib/diceTray/diceTray.svelte.spec.ts
-@@ -0,0 +1,248 @@
+@@ -0,0 +1,271 @@
 +import { describe, expect, it } from 'vitest';
 +import {
 +  ServerDiceTray,
@@ -937,6 +942,7 @@ index 000000000..91b129da3
 +  emptyRoll,
 +  isEmptyRoll,
 +  formatRollCommand,
++  parseDiceMode,
 +  parseDiceSystem,
 +  parseRollCommand,
 +  parseTrayRoll
@@ -1093,9 +1099,31 @@ index 000000000..91b129da3
 +
 +    expect(tray.rolls('r').latest?.eventId).toBe('c');
 +    expect(tray.rolls('r').latestPerRoller.map((r) => r.eventId)).toEqual(['c', 'b']);
-+    expect(tray.viewerIsGm).toBe(true);
++    expect(tray.isGm('u_gm')).toBe(true);
++    expect(tray.isGm('u_bob')).toBe(false);
 +    expect(tray.diceThread('r')).toBe('t1');
 +    expect(new ServerDiceTray('srv').diceThread('r')).toBe('t1');
++  });
++
++  it('learns GM mode from mode replies and keeps the newest per account', () => {
++    localStorage.clear();
++    const tray = new ServerDiceTray('srv-modes');
++    tray.ingest('r', roll('a', 'u_phil', 1, true), 't', 'u_phil', { live: true });
++    expect(tray.isGm('u_phil')).toBe(true);
++
++    const mode = parseDiceMode(
++      '**Spieler-Modus aktiviert.** [\u200b](#chatto-dice-mode:by=u_phil;gm=0)'
++    );
++    expect(mode).toEqual({ userId: 'u_phil', gm: false });
++    tray.noteMode(mode!.userId, mode!.gm, 2);
++    expect(tray.isGm('u_phil')).toBe(false);
++
++    // An older GM roll that loads later, for example in another room, does not win.
++    tray.ingest('r2', roll('b', 'u_phil', 0, true), 't2', 'u_phil', { live: false });
++    expect(tray.isGm('u_phil')).toBe(false);
++    // Another account in the same browser keeps its own mode.
++    expect(tray.isGm('u_alice')).toBe(false);
++    expect(new ServerDiceTray('srv-modes').isGm('u_phil')).toBe(false);
 +  });
 +
 +  it('lists the latest roll of the other rollers for the GM, newest first and limited', () => {
@@ -1180,10 +1208,10 @@ index 000000000..91b129da3
 +});
 diff --git a/apps/frontend/src/lib/diceTray/diceTray.svelte.ts b/apps/frontend/src/lib/diceTray/diceTray.svelte.ts
 new file mode 100644
-index 000000000..501e92831
+index 000000000..ee337d5e8
 --- /dev/null
 +++ b/apps/frontend/src/lib/diceTray/diceTray.svelte.ts
-@@ -0,0 +1,450 @@
+@@ -0,0 +1,481 @@
 +/**
 + * Dice tray: a dice bar at the composer and the latest dice bot results.
 + *
@@ -1194,8 +1222,9 @@ index 000000000..501e92831
 + * `gm=1` marks a roll in the bot's GM mode. The bot posts the replies into a
 + * per-session collection thread of the room, which `!dice` in a thread sets up.
 + *
-+ * Players see the latest roll of the room. A viewer whose own latest roll was a
-+ * GM roll sees the latest roll per player instead. A bot reply to a roll command
++ * Players see the latest roll of the room. A viewer in GM mode sees the latest roll
++ * per player instead. The viewer's mode comes from their newest own roll or from the
++ * bot's reply to its mode commands, `[\u200b](#chatto-dice-mode:by=<userId>;gm=0|1)`. A bot reply to a roll command
 + * without dice, such as an error, carries an invisible note marker
 + * `[\u200b](#chatto-dice-note:by=<userId>)`; only the roller sees it in the tray.
 + * Both markers may carry `;sys=<system>`, the bot's dice system of the room, and a
@@ -1352,6 +1381,14 @@ index 000000000..501e92831
 +  return system && DICE_SYSTEMS.includes(system) ? (system as DiceSystem) : null;
 +}
 +
++const MODE_MARKER = /#chatto-dice-mode:by=([\w-]{1,64});gm=([01])\)/;
++
++/** The GM mode that a bot reply to `!gm` or `!player` names, or null. */
++export function parseDiceMode(body: string): { userId: string; gm: boolean } | null {
++  const found = MODE_MARKER.exec(body);
++  return found ? { userId: found[1], gm: found[2] === '1' } : null;
++}
++
 +/**
 + * One die of a result, from the marker: `kind` is for example `hope`, `fear`,
 + * `adv`, `dis`, `wild`, `gm`, `std`, or `drop` (a die that does not count).
@@ -1483,6 +1520,7 @@ index 000000000..501e92831
 +}
 +
 +type RoomSystem = { system: DiceSystem; atMs: number };
++type UserMode = { gm: boolean; atMs: number };
 +
 +/**
 + * A roll command that the viewer sent from a composer, typed or from the dice
@@ -1509,6 +1547,19 @@ index 000000000..501e92831
 +    )
 +);
 +
++const modesCodec = Codecs.json<Record<string, UserMode>>(
++  (value): value is Record<string, UserMode> =>
++    typeof value === 'object' &&
++    value !== null &&
++    Object.values(value).every(
++      (entry) =>
++        typeof entry === 'object' &&
++        entry !== null &&
++        typeof (entry as UserMode).gm === 'boolean' &&
++        typeof (entry as UserMode).atMs === 'number'
++    )
++);
++
 +const barCodec = Codecs.json<Record<string, boolean>>(
 +  (value): value is Record<string, boolean> =>
 +    typeof value === 'object' &&
@@ -1526,7 +1577,7 @@ index 000000000..501e92831
 +/** Dice tray state of one server. */
 +export class ServerDiceTray {
 +  readonly #threads: StorageSlot<Record<string, string>>;
-+  readonly #gm: StorageSlot<boolean>;
++  readonly #modes: StorageSlot<Record<string, UserMode>>;
 +  readonly #systems: StorageSlot<Record<string, RoomSystem>>;
 +  readonly #bar: StorageSlot<Record<string, boolean>>;
 +  // Each RoomDiceRolls is reactive itself; this only hands out one per room.
@@ -1535,14 +1586,14 @@ index 000000000..501e92831
 +  #systemByRoom = $state<Record<string, RoomSystem>>({});
 +  #barByRoom = $state<Record<string, boolean>>({});
 +  #sentByRoom = $state<Record<string, SentRoll>>({});
-+  /** The viewer's own latest roll was a GM roll. */
-+  viewerIsGm = $state(false);
++  // Per account, so that several accounts in one browser keep their own mode.
++  #modeByUser = $state<Record<string, UserMode>>({});
 +
 +  constructor(serverId: string) {
 +    this.#threads = serverSlot(serverId, 'dice-tray-threads', {}, threadsCodec);
-+    this.#gm = serverSlot(serverId, 'dice-tray-gm', false, Codecs.boolean);
++    this.#modes = serverSlot(serverId, 'dice-tray-modes', {}, modesCodec);
 +    this.#threadIds = this.#threads.get();
-+    this.viewerIsGm = this.#gm.get();
++    this.#modeByUser = this.#modes.get();
 +    this.#systems = serverSlot(serverId, 'dice-tray-systems', {}, systemsCodec);
 +    this.#systemByRoom = this.#systems.get();
 +    this.#bar = serverSlot(serverId, 'dice-bar-rooms', {}, barCodec);
@@ -1594,6 +1645,19 @@ index 000000000..501e92831
 +    this.#systems.set(this.#systemByRoom);
 +  }
 +
++  /** Whether the viewer is in the bot's GM mode; players until a roll or mode reply says otherwise. */
++  isGm(viewerId: string | null): boolean {
++    return viewerId !== null && (this.#modeByUser[viewerId]?.gm ?? false);
++  }
++
++  /** Record a user's GM mode from a roll or a mode reply; older messages never win. */
++  noteMode(userId: string, gm: boolean, atMs: number): void {
++    const known = this.#modeByUser[userId];
++    if (known && known.atMs >= atMs) return;
++    this.#modeByUser = { ...this.#modeByUser, [userId]: { gm, atMs } };
++    this.#modes.set(this.#modeByUser);
++  }
++
 +  /** The collection thread that the bot last posted a roll into, if known. */
 +  diceThread(roomId: string): string | null {
 +    return this.#threadIds[roomId] ?? null;
@@ -1616,14 +1680,9 @@ index 000000000..501e92831
 +      this.#threadIds = { ...this.#threadIds, [roomId]: threadRootEventId };
 +      this.#threads.set(this.#threadIds);
 +    }
-+    const own = viewerId !== null && roll.rollerId === viewerId;
-+    // Only the viewer's newest own roll decides, also when older rolls load later.
-+    const ownLatest = own
-+      ? this.rolls(roomId).latestPerRoller.find((r) => r.rollerId === viewerId)
-+      : undefined;
-+    if (ownLatest?.eventId === roll.eventId) {
-+      this.viewerIsGm = roll.gm;
-+      this.#gm.set(roll.gm);
++    // Notes carry no mode; the newest own roll decides, also across rooms.
++    if (viewerId !== null && roll.rollerId === viewerId && !roll.note) {
++      this.noteMode(viewerId, roll.gm, roll.createdAtMs);
 +    }
 +  }
 +}
